@@ -194,7 +194,7 @@ Ogni voce di `purposes` accetta:
 | `reject_restricted` | `false` | Se `true`, rifiuta autenticatori "restricted" NIST (es. SMS). |
 | `drivers` | `['email_otp']` | Driver ammessi, **in ordine di preferenza**. Il primo disponibile e idoneo viene scelto. |
 | `ttl_seconds` | `default_ttl_seconds` | Override della finestra di conferma per QUESTO purpose. |
-| `always_require` | `true` | Se `false`, il purpose può essere saltato in base al rischio (hook risk-based). |
+| `always_require` | `true` | **Riservato** all'hook risk-based (in arrivo): oggi lo step-up è **sempre** richiesto. Impostare `false` non salta ancora la verifica — lo farà quando il risk evaluator sarà collegato. |
 | `sca.dynamic_linking` | `false` | Se `true`, attiva il **binding** a importo+beneficiario (per i pagamenti). |
 
 Esempio:

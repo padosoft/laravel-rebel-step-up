@@ -85,7 +85,11 @@ final class RebelStepUp
 
         $driver = $this->pickDriver($context, $policy, $driverKey);
 
-        $binding = $context->transaction?->bindingHash($this->hasher);
+        // Il binding SCA è governato dalla POLICY, non dalla semplice presenza di una
+        // transazione: per un purpose NON-SCA i campi bound_* restano null anche se al
+        // chiamante "scappa" un TransactionContext (niente dati incoerenti in tabella).
+        $transaction = $policy->scaDynamicLinking ? $context->transaction : null;
+        $binding = $transaction?->bindingHash($this->hasher);
         $now = CarbonImmutable::instance($this->clock->now());
 
         $challenge = new StepUpChallenge;
@@ -101,10 +105,10 @@ final class RebelStepUp
             'require_phishing_resistant' => $policy->requirePhishingResistant,
             'selected_driver' => $driver->key(),
             'binding_hash' => $binding?->hash,
-            'bound_amount' => $context->transaction?->amount,
-            'bound_currency' => $context->transaction?->currency,
-            'bound_payee' => $context->transaction?->payee,
-            'bound_order_ref' => $context->transaction?->orderRef,
+            'bound_amount' => $transaction?->amount,
+            'bound_currency' => $transaction?->currency,
+            'bound_payee' => $transaction?->payee,
+            'bound_order_ref' => $transaction?->orderRef,
             'key_version' => $binding?->keyVersion,
             'status' => StepUpStatus::Pending,
             'expires_at' => $now->addSeconds($this->intConfig('rebel-step-up.challenge_ttl_seconds', 300)),
@@ -143,11 +147,14 @@ final class RebelStepUp
     {
         $maxAttempts = $this->intConfig('rebel-step-up.max_attempts', 5);
         $now = CarbonImmutable::instance($this->clock->now());
+        $policy = $this->policy($context->purpose);
         $tenantId = $context->tenantId();
         $guard = $context->security->guard;
-        $bindingHash = $context->transaction?->bindingHash($this->hasher)->hash;
+        $deviceId = $context->deviceId;
+        // Binding atteso: calcolato SOLO per i purpose SCA (per gli altri il binding è ignorato).
+        $expectedBinding = $policy->scaDynamicLinking ? $context->transaction?->bindingHash($this->hasher)->hash : null;
 
-        return $this->db->connection()->transaction(function () use ($challengeId, $input, $context, $maxAttempts, $now, $tenantId, $guard, $bindingHash): StepUpResult {
+        return $this->db->connection()->transaction(function () use ($challengeId, $input, $context, $maxAttempts, $now, $tenantId, $guard, $deviceId, $expectedBinding): StepUpResult {
             $challenge = StepUpChallenge::query()
                 ->whereKey($challengeId)
                 ->where('subject_type', $context->subjectType())
@@ -164,6 +171,13 @@ final class RebelStepUp
                     $guard === null,
                     fn ($query) => $query->whereNull('guard'),
                     fn ($query) => $query->where('guard', $guard),
+                )
+                // Device binding simmetrico anche in conferma (coerente con validConfirmation):
+                // non si conferma una sfida avviata da un altro device.
+                ->when(
+                    $deviceId === null,
+                    fn ($query) => $query->whereNull('device_id'),
+                    fn ($query) => $query->where('device_id', $deviceId),
                 )
                 ->lockForUpdate()
                 ->first();
@@ -183,8 +197,10 @@ final class RebelStepUp
                 return StepUpResult::failure('expired');
             }
 
-            // SCA dynamic linking: il binding deve combaciare (importo/beneficiario invariati).
-            if ($challenge->binding_hash !== $bindingHash) {
+            // SCA dynamic linking: il confronto si applica SOLO alle sfide effettivamente
+            // bound (binding_hash non nullo). Confronto a tempo costante.
+            if ($challenge->binding_hash !== null
+                && ($expectedBinding === null || ! hash_equals($challenge->binding_hash, $expectedBinding))) {
                 return StepUpResult::failure('binding_mismatch');
             }
 
@@ -231,9 +247,11 @@ final class RebelStepUp
 
         $now = CarbonImmutable::instance($this->clock->now());
         $threshold = $now->subSeconds($policy->ttlSeconds);
-        $bindingHash = $context->transaction?->bindingHash($this->hasher)->hash;
         $tenantId = $context->tenantId();
         $guard = $context->security->guard;
+
+        // Il binding è governato dalla POLICY: calcolato solo per i purpose SCA.
+        $bindingHash = $policy->scaDynamicLinking ? $context->transaction?->bindingHash($this->hasher)->hash : null;
 
         // Fail-closed PSD2/SCA: per un purpose con dynamic linking una conferma senza binding
         // (nessuna transazione nel contesto) non è MAI valida — evita conferme non linkate.
@@ -257,9 +275,10 @@ final class RebelStepUp
                 fn ($query) => $query->whereNull('guard'),
                 fn ($query) => $query->where('guard', $guard),
             )
+            // Binding filtrato in base alla POLICY: per i purpose SCA deve combaciare con la
+            // transazione corrente; per i purpose non-SCA il binding viene ignorato del tutto.
             ->when(
-                $bindingHash === null,
-                fn ($query) => $query->whereNull('binding_hash'),
+                $policy->scaDynamicLinking,
                 fn ($query) => $query->where('binding_hash', $bindingHash),
             )
             // Il device binding è SIMMETRICO: contesto senza device ⇒ solo conferme senza device,

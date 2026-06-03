@@ -80,6 +80,27 @@ it('binds the confirmation to the transaction (PSD2 dynamic linking)', function 
     expect($stepUp->isConfirmed($ctxB))->toBeFalse();
 });
 
+it('ignores a stray transaction on a non-SCA purpose (binding policy-driven)', function (): void {
+    fakeDriver(Aal::Aal1, false);
+    config()->set('rebel-step-up.purposes.test', ['required_assurance' => 'aal1', 'drivers' => ['fake'], 'always_require' => true]); // niente sca
+    $stepUp = app(RebelStepUp::class);
+    $user = new GenericUser(['id' => 1]);
+
+    // Anche se al chiamante "scappa" una transazione su un purpose non-SCA…
+    $withTx = new StepUpContext($user, 'test', new SecurityContext('r'), new TransactionContext(50.00, 'EUR', 'X', 'Y'));
+    $start = $stepUp->start($withTx);
+
+    // …i campi bound NON vengono persistiti (nessun dato incoerente).
+    $challenge = StepUpChallenge::query()->findOrFail($start->challengeId);
+    expect($challenge->binding_hash)->toBeNull()
+        ->and($challenge->bound_amount)->toBeNull();
+
+    // …e la conferma funziona anche con un contesto SENZA transazione (binding ignorato).
+    $plain = new StepUpContext($user, 'test', new SecurityContext('r'));
+    expect($stepUp->confirm($start->challengeId, '123456', $plain)->success)->toBeTrue()
+        ->and($stepUp->isConfirmed($plain))->toBeTrue();
+});
+
 it('refuses to start an SCA purpose without a transaction (fail-closed)', function (): void {
     fakeDriver(Aal::Aal1, false);
     config()->set('rebel-step-up.purposes.pay', ['required_assurance' => 'aal1', 'drivers' => ['fake'], 'always_require' => true, 'sca' => ['dynamic_linking' => true]]);

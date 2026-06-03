@@ -44,6 +44,14 @@ final class PolicyRepository
 
     private function aal(mixed $value): Aal
     {
+        // Default DOCUMENTATO: `aal1` quando la chiave è assente (vedi README/config).
+        if ($value === null) {
+            return Aal::Aal1;
+        }
+
+        // Valore presente ma non valido (stringa sconosciuta o tipo errato) → fail-closed sul
+        // livello più alto, così una config malformata non abbassa silenziosamente la sicurezza
+        // (e `rebel:validate-config` la segnala).
         return is_string($value) ? (Aal::tryFrom($value) ?? Aal::Aal2) : Aal::Aal2;
     }
 
