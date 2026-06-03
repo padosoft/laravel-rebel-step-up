@@ -1,6 +1,6 @@
 {
     "name": "padosoft/laravel-rebel-step-up",
-    "description": "Step-up authentication per Laravel Rebel: conferma di un'azione/purpose con assurance AAL/AMR, risk-based, e PSD2/SCA dynamic linking. Parte di padosoft/laravel-rebel-*.",
+    "description": "Step-up authentication for Laravel Rebel: confirm an action/purpose with AAL/AMR assurance, risk-based, and PSD2/SCA dynamic linking. Part of padosoft/laravel-rebel-*.",
     "keywords": ["laravel", "authentication", "step-up", "mfa", "sca", "psd2", "assurance", "padosoft", "rebel"],
     "homepage": "https://github.com/padosoft/laravel-rebel-step-up",
     "license": "MIT",
