@@ -80,6 +80,30 @@ it('binds the confirmation to the transaction (PSD2 dynamic linking)', function 
     expect($stepUp->isConfirmed($ctxB))->toBeFalse();
 });
 
+it('refuses to start an SCA purpose without a transaction (fail-closed)', function (): void {
+    fakeDriver(Aal::Aal1, false);
+    config()->set('rebel-step-up.purposes.pay', ['required_assurance' => 'aal1', 'drivers' => ['fake'], 'always_require' => true, 'sca' => ['dynamic_linking' => true]]);
+    $ctx = new StepUpContext(new GenericUser(['id' => 1]), 'pay', new SecurityContext('r')); // niente TransactionContext
+
+    app(RebelStepUp::class)->start($ctx);
+})->throws(InvalidArgumentException::class);
+
+it('does not let a step-up under one guard satisfy another guard', function (): void {
+    fakeDriver(Aal::Aal1, false);
+    config()->set('rebel-step-up.purposes.test', ['required_assurance' => 'aal1', 'drivers' => ['fake'], 'always_require' => true]);
+    $stepUp = app(RebelStepUp::class);
+    $user = new GenericUser(['id' => 1]);
+
+    $web = new StepUpContext($user, 'test', (new SecurityContext('r'))->withGuard('web'));
+    $start = $stepUp->start($web);
+    $stepUp->confirm($start->challengeId, '123456', $web);
+    expect($stepUp->isConfirmed($web))->toBeTrue();
+
+    // Stesso utente/tenant/purpose ma guard diverso ⇒ la conferma NON vale.
+    $admin = new StepUpContext($user, 'test', (new SecurityContext('r'))->withGuard('admin'));
+    expect($stepUp->isConfirmed($admin))->toBeFalse();
+});
+
 it('is not fooled by a delimiter-collision in the transaction fields (anti-injection)', function (): void {
     fakeDriver(Aal::Aal1, false);
     config()->set('rebel-step-up.purposes.pay', ['required_assurance' => 'aal1', 'drivers' => ['fake'], 'always_require' => true, 'sca' => ['dynamic_linking' => true]]);

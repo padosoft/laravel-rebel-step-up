@@ -74,6 +74,15 @@ final class RebelStepUp
     public function start(StepUpContext $context, ?string $driverKey = null): StepUpStartResult
     {
         $policy = $this->policy($context->purpose);
+
+        // Fail-closed PSD2/SCA: un purpose con dynamic linking SENZA TransactionContext
+        // produrrebbe un binding nullo (riutilizzabile e NON legato a importo/payee). Vietato.
+        if ($policy->scaDynamicLinking && $context->transaction === null) {
+            throw new \InvalidArgumentException(
+                "Il purpose '{$context->purpose}' richiede il PSD2/SCA dynamic linking: un TransactionContext (importo+beneficiario) è obbligatorio."
+            );
+        }
+
         $driver = $this->pickDriver($context, $policy, $driverKey);
 
         $binding = $context->transaction?->bindingHash($this->hasher);
@@ -135,9 +144,10 @@ final class RebelStepUp
         $maxAttempts = $this->intConfig('rebel-step-up.max_attempts', 5);
         $now = CarbonImmutable::instance($this->clock->now());
         $tenantId = $context->tenantId();
+        $guard = $context->security->guard;
         $bindingHash = $context->transaction?->bindingHash($this->hasher)->hash;
 
-        return $this->db->connection()->transaction(function () use ($challengeId, $input, $context, $maxAttempts, $now, $tenantId, $bindingHash): StepUpResult {
+        return $this->db->connection()->transaction(function () use ($challengeId, $input, $context, $maxAttempts, $now, $tenantId, $guard, $bindingHash): StepUpResult {
             $challenge = StepUpChallenge::query()
                 ->whereKey($challengeId)
                 ->where('subject_type', $context->subjectType())
@@ -147,6 +157,13 @@ final class RebelStepUp
                     $tenantId === null,
                     fn ($query) => $query->whereNull('tenant_id'),
                     fn ($query) => $query->where('tenant_id', $tenantId),
+                )
+                // Isolamento per-guard: una conferma fatta sotto un guard (es. `web`) non può
+                // valere per un guard diverso (es. `admin`) con lo stesso utente/tenant/purpose.
+                ->when(
+                    $guard === null,
+                    fn ($query) => $query->whereNull('guard'),
+                    fn ($query) => $query->where('guard', $guard),
                 )
                 ->lockForUpdate()
                 ->first();
@@ -216,6 +233,13 @@ final class RebelStepUp
         $threshold = $now->subSeconds($policy->ttlSeconds);
         $bindingHash = $context->transaction?->bindingHash($this->hasher)->hash;
         $tenantId = $context->tenantId();
+        $guard = $context->security->guard;
+
+        // Fail-closed PSD2/SCA: per un purpose con dynamic linking una conferma senza binding
+        // (nessuna transazione nel contesto) non è MAI valida — evita conferme non linkate.
+        if ($policy->scaDynamicLinking && $bindingHash === null) {
+            return null;
+        }
 
         $challenge = StepUpChallenge::query()
             ->where('subject_type', $context->subjectType())
@@ -227,6 +251,11 @@ final class RebelStepUp
                 $tenantId === null,
                 fn ($query) => $query->whereNull('tenant_id'),
                 fn ($query) => $query->where('tenant_id', $tenantId),
+            )
+            ->when(
+                $guard === null,
+                fn ($query) => $query->whereNull('guard'),
+                fn ($query) => $query->where('guard', $guard),
             )
             ->when(
                 $bindingHash === null,
