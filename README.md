@@ -85,16 +85,19 @@ It depends on [`padosoft/laravel-rebel-core`](https://github.com/padosoft/larave
 
 ## Rebel Step-Up vs the "do-it-yourself"
 
-| | **Rebel Step-Up** | Laravel's `password.confirm` middleware | Fortify-native password confirmation | Hand-rolled "re-enter password" |
-|---|---|---|---|---|
-| Configurable strength per action (AAL/AMR) | ✅ | ❌ (password only) | ❌ (password only) | ❌ |
-| Passkey / TOTP / email OTP interchangeable | ✅ | ❌ | ❌ | ❌ |
-| PSD2/SCA dynamic linking (amount+payee) | ✅ | ❌ | ❌ | ❌ |
-| Confirmation that lapses if the amount changes | ✅ | ❌ | ❌ | ❌ |
-| Device binding | ✅ | ❌ | ❌ | ❌ |
-| Per-purpose, multiple protected actions | ✅ | ➖ (single global window) | ➖ (single global window) | ❌ |
-| Multi-tenant + audit trail | ✅ | ❌ | ❌ | ❌ |
-| Config validation in CI | ✅ | ❌ | ❌ | ❌ |
+| | **Rebel Step-Up** | Shopify | Laravel's `password.confirm` middleware | Fortify-native password confirmation | Hand-rolled "re-enter password" |
+|---|---|---|---|---|---|
+| Configurable strength per action (AAL/AMR) | ✅ | ❌ | ❌ (password only) | ❌ (password only) | ❌ |
+| Passkey / TOTP / email OTP interchangeable | ✅ | ❌ | ❌ | ❌ | ❌ |
+| PSD2/SCA dynamic linking (amount+payee) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Confirmation that lapses if the amount changes | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Device binding | ✅ | ➖ | ❌ | ❌ | ❌ |
+| Per-purpose, multiple protected actions | ✅ | ❌ | ➖ (single global window) | ➖ (single global window) | ❌ |
+| Multi-tenant + audit trail | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Config validation in CI | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+> Legend: ✅ built-in · ➖ partial / hosted-only / not exposed to you · ❌ not available.
+> Note on Shopify: it is a **hosted, closed commerce platform** you can neither self-host nor extend — it exposes none of these step-up primitives to your own Laravel app, so it's a black box you don't control.
 
 ---
 
