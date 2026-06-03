@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Padosoft\Rebel\StepUp\Results;
 
 /**
- * Esito di una conferma step-up.
+ * Outcome of a step-up confirmation.
  */
 final readonly class StepUpResult
 {

@@ -11,9 +11,9 @@ use Padosoft\Rebel\Core\Concerns\BelongsToTenant;
 use Padosoft\Rebel\StepUp\Enums\StepUpStatus;
 
 /**
- * Una sfida di step-up. Quando `status = verified` e non scaduta la "finestra di
- * conferma" (verified_at + ttl), e il binding_hash combacia (per i purpose SCA),
- * vale come conferma valida per quel purpose.
+ * A step-up challenge. When `status = verified`, the "confirmation window"
+ * (verified_at + ttl) has not expired, and the binding_hash matches (for SCA purposes),
+ * it counts as a valid confirmation for that purpose.
  *
  * @property string $id
  * @property string|null $tenant_id

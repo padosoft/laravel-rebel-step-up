@@ -8,8 +8,8 @@ use Illuminate\Contracts\Config\Repository;
 use Padosoft\Rebel\Core\Assurance\Aal;
 
 /**
- * Costruisce le PurposePolicy a partire dalla config `rebel-step-up.purposes`.
- * Tutte le letture sono type-safe (niente cast su mixed).
+ * Builds PurposePolicy instances from the `rebel-step-up.purposes` config.
+ * All reads are type-safe (no casting on mixed).
  */
 final class PolicyRepository
 {
@@ -44,14 +44,14 @@ final class PolicyRepository
 
     private function aal(mixed $value): Aal
     {
-        // Default DOCUMENTATO: `aal1` quando la chiave è assente (vedi README/config).
+        // DOCUMENTED default: `aal1` when the key is absent (see README/config).
         if ($value === null) {
             return Aal::Aal1;
         }
 
-        // Valore presente ma non valido (stringa sconosciuta o tipo errato) → fail-closed sul
-        // livello più alto, così una config malformata non abbassa silenziosamente la sicurezza
-        // (e `rebel:validate-config` la segnala).
+        // Value present but invalid (unknown string or wrong type) → fail-closed to the
+        // highest level, so a malformed config does not silently lower security
+        // (and `rebel:validate-config` flags it).
         return is_string($value) ? (Aal::tryFrom($value) ?? Aal::Aal2) : Aal::Aal2;
     }
 

@@ -10,11 +10,11 @@ use Padosoft\Rebel\StepUp\DriverRegistry;
 use Padosoft\Rebel\StepUp\PolicyRepository;
 
 /**
- * Valida (fail-fast) che OGNI purpose abbia almeno un driver configurato, registrato,
- * e che soddisfi l'assurance richiesta (AAL + phishing-resistant + restricted).
+ * Validates (fail-fast) that EVERY purpose has at least one driver that is configured,
+ * registered, and that meets the required assurance (AAL + phishing-resistant + restricted).
  *
- * È IL controllo di sicurezza centrale: impedisce che, per es., `change-email`
- * (che richiede AAL2 phishing-resistant) ammetta solo `email_otp` (AAL1) → errore in CI.
+ * This IS the central security check: it prevents, for example, `change-email`
+ * (which requires AAL2 phishing-resistant) from allowing only `email_otp` (AAL1) → CI error.
  */
 final class StepUpConfigValidator implements ConfigValidator
 {

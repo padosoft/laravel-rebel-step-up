@@ -9,12 +9,12 @@ use Padosoft\Rebel\Core\Context\SecurityContext;
 use Padosoft\Rebel\StepUp\Sca\TransactionContext;
 
 /**
- * Tutto ciò che serve a valutare/effettuare uno step-up:
- *  - subject:     l'utente autenticato che deve confermare;
- *  - purpose:     l'azione sensibile (es. 'checkout-credit-order');
- *  - security:    il SecurityContext (tenant/ip/ua...);
- *  - transaction: per i purpose transazionali (SCA dynamic linking);
- *  - deviceId:    dispositivo corrente (per legare la conferma al device).
+ * Everything needed to evaluate/perform a step-up:
+ *  - subject:     the authenticated user who must confirm;
+ *  - purpose:     the sensitive action (e.g. 'checkout-credit-order');
+ *  - security:    the SecurityContext (tenant/ip/ua...);
+ *  - transaction: for transactional purposes (SCA dynamic linking);
+ *  - deviceId:    the current device (to bind the confirmation to the device).
  */
 final readonly class StepUpContext
 {
@@ -40,8 +40,8 @@ final readonly class StepUpContext
     {
         $id = $this->subject->getAuthIdentifier();
 
-        // Fail-fast: un identifier non scalare collasserebbe più utenti sullo stesso
-        // subject_id ("") facendoli condividere le conferme di step-up → MAI fail-open.
+        // Fail-fast: a non-scalar identifier would collapse multiple users onto the same
+        // subject_id ("") and let them share step-up confirmations → NEVER fail-open.
         if (! is_scalar($id)) {
             throw new \UnexpectedValueException(
                 'Lo step-up richiede un identificativo scalare per il subject; ricevuto: '.get_debug_type($id).'.'

@@ -7,8 +7,8 @@ namespace Padosoft\Rebel\StepUp;
 use Padosoft\Rebel\StepUp\Contracts\StepUpDriver;
 
 /**
- * Registro dei driver di step-up. I package (es. bridge-fortify, channels) registrano
- * qui i propri driver; il manager li risolve per chiave.
+ * Registry of step-up drivers. Packages (e.g. bridge-fortify, channels) register
+ * their own drivers here; the manager resolves them by key.
  */
 final class DriverRegistry
 {

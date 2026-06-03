@@ -13,13 +13,13 @@ use Padosoft\Rebel\StepUp\StepUpContext;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Protegge una rotta richiedendo lo step-up per un dato purpose.
+ * Protects a route by requiring step-up for a given purpose.
  *
  *   Route::post('/account/change-email', ChangeEmailController::class)
  *       ->middleware('rebel.stepup:change-email');
  *
- * Se manca una conferma valida: 423 (JSON) con i driver disponibili, oppure redirect
- * alla schermata di step-up (config `redirect_route`).
+ * If no valid confirmation exists: 423 (JSON) with the available drivers, or a redirect
+ * to the step-up screen (config `redirect_route`).
  */
 final class EnsureStepUp
 {

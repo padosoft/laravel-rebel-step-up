@@ -4,30 +4,30 @@ declare(strict_types=1);
 
 return [
 
-    // Durata (secondi) di validità di una conferma step-up (finestra di "freschezza").
+    // Duration (seconds) a step-up confirmation stays valid (the "freshness" window).
     'default_ttl_seconds' => (int) env('REBEL_STEPUP_TTL', 600),
 
-    // Tempo (secondi) entro cui completare una sfida di step-up avviata.
+    // Time (seconds) within which a started step-up challenge must be completed.
     'challenge_ttl_seconds' => (int) env('REBEL_STEPUP_CHALLENGE_TTL', 300),
 
-    // Tentativi massimi di conferma per sfida.
+    // Maximum confirmation attempts per challenge.
     'max_attempts' => (int) env('REBEL_STEPUP_MAX_ATTEMPTS', 5),
 
-    // Route name della schermata di step-up (web). Null → 423 nudo.
+    // Route name of the step-up screen (web). Null → bare 423.
     'redirect_route' => env('REBEL_STEPUP_REDIRECT_ROUTE'),
 
     /*
     |--------------------------------------------------------------------------
     | Purpose policies
     |--------------------------------------------------------------------------
-    | Ogni "purpose" (azione sensibile) dichiara: assurance richiesta, se serve
-    | phishing-resistant, i driver ammessi (in ordine di preferenza), il TTL, e se
-    | attiva il PSD2/SCA dynamic linking.
+    | Each "purpose" (sensitive action) declares: the required assurance, whether
+    | phishing-resistant is required, the allowed drivers (in order of preference),
+    | the TTL, and whether PSD2/SCA dynamic linking is enabled.
     |
-    | NOTA SICUREZZA: di default usiamo `email_otp` (AAL1) così la config è VALIDA
-    | out-of-box. Per azioni forti alza `required_assurance` ad `aal2` + aggiungi
-    | driver phishing-resistant (es. `fortify_passkey_confirm` dal bridge-fortify):
-    | `rebel:validate-config` fallirà se nessun driver soddisfa la soglia.
+    | SECURITY NOTE: by default we use `email_otp` (AAL1) so the config is VALID
+    | out-of-the-box. For strong actions, raise `required_assurance` to `aal2` and add
+    | a phishing-resistant driver (e.g. `fortify_passkey_confirm` from bridge-fortify):
+    | `rebel:validate-config` will fail if no driver meets the threshold.
     */
     'purposes' => [
 

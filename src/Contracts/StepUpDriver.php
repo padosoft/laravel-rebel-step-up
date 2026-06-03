@@ -8,27 +8,27 @@ use Padosoft\Rebel\Core\Assurance\AssuranceLevel;
 use Padosoft\Rebel\StepUp\StepUpContext;
 
 /**
- * Un metodo con cui l'utente conferma uno step-up (email-OTP, passkey, TOTP, SMS...).
+ * A method by which the user confirms a step-up (email-OTP, passkey, TOTP, SMS...).
  *
- * Ogni driver DICHIARA l'assurance che produce: il resolver/policy rifiuta in
- * validazione config i driver sotto la soglia richiesta dal purpose (fail-fast).
+ * Each driver DECLARES the assurance it produces: during config validation the
+ * resolver/policy rejects drivers below the threshold required by the purpose (fail-fast).
  */
 interface StepUpDriver
 {
-    /** Chiave univoca (es. 'email_otp', 'fortify_passkey_confirm'). */
+    /** Unique key (e.g. 'email_otp', 'fortify_passkey_confirm'). */
     public function key(): string;
 
     public function assurance(): AssuranceLevel;
 
-    /** True se questo driver è utilizzabile per il subject/contesto (es. ha una passkey). */
+    /** True if this driver is usable for the subject/context (e.g. has a passkey). */
     public function isAvailableFor(StepUpContext $context): bool;
 
     /**
-     * Avvia la sfida (es. invia un OTP). Ritorna un riferimento opaco da conservare
-     * (es. l'id della challenge OTP), oppure null se non serve stato.
+     * Starts the challenge (e.g. sends an OTP). Returns an opaque reference to store
+     * (e.g. the OTP challenge id), or null if no state is needed.
      */
     public function start(StepUpContext $context): ?string;
 
-    /** Verifica l'input dell'utente usando l'eventuale riferimento salvato. */
+    /** Verifies the user's input using the stored reference, if any. */
     public function verify(StepUpContext $context, string $input, ?string $reference): bool;
 }

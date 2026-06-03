@@ -8,9 +8,9 @@ use Padosoft\Rebel\Core\Contracts\KeyedHasher;
 use Padosoft\Rebel\Core\Hashing\HashedValue;
 
 /**
- * Contesto transazionale per il PSD2/SCA "dynamic linking": la conferma di step-up
- * viene LEGATA a importo + valuta + beneficiario + riferimento ordine. Se uno di
- * questi cambia, il binding_hash cambia e la conferma decade → si ri-autentica.
+ * Transaction context for PSD2/SCA "dynamic linking": the step-up confirmation
+ * is BOUND to amount + currency + payee + order reference. If any of these
+ * changes, the binding_hash changes and the confirmation lapses → re-authentication.
  *
  *   new TransactionContext(1250.00, 'EUR', 'ACME Srl', 'ORD-1234');
  */
@@ -22,26 +22,26 @@ final readonly class TransactionContext
         public string $payee,
         public string $orderRef,
     ) {
-        // Fail-fast su importi non rappresentabili: NaN/Inf o negativi non hanno senso per
-        // una transazione e renderebbero il binding ambiguo. Meglio rompere subito.
+        // Fail-fast on non-representable amounts: NaN/Inf or negatives make no sense for
+        // a transaction and would make the binding ambiguous. Better to fail immediately.
         if (! is_finite($amount) || $amount < 0) {
             throw new \InvalidArgumentException("Importo transazione non valido: {$amount}.");
         }
     }
 
     /**
-     * Serializzazione canonica (ordine fisso) per un hash deterministico.
+     * Canonical serialization (fixed order) for a deterministic hash.
      *
-     * NOTA SICUREZZA — anti delimiter-injection: NON si concatenano i campi con un separatore
-     * (es. '|'), perché un payee come "ACME|EUR|..." potrebbe collidere con una transazione
-     * diversa e aggirare il dynamic linking. Si usa invece un JSON a chiavi ordinate fisse:
-     * l'escaping del JSON rende ogni campo non ambiguo. JSON_THROW_ON_ERROR ⇒ fail-closed su
-     * input non rappresentabile (meglio rifiutare lo step-up che produrre un binding ambiguo).
+     * SECURITY NOTE — anti delimiter-injection: fields are NOT concatenated with a separator
+     * (e.g. '|'), because a payee like "ACME|EUR|..." could collide with a different
+     * transaction and bypass dynamic linking. Instead, a JSON with fixed ordered keys is used:
+     * JSON escaping makes every field unambiguous. JSON_THROW_ON_ERROR ⇒ fail-closed on
+     * non-representable input (better to reject the step-up than produce an ambiguous binding).
      *
-     * L'importo è normalizzato a 2 decimali con punto e senza separatore migliaia, così
-     * l'imprecisione binaria del float collassa a una stringa stabile (es. 0.1+0.2 → "0.30").
-     * La canonicalizzazione è IDENTICA in start() e confirm()/validConfirmation(): il binding
-     * è auto-consistente — stessa transazione ⇒ stesso hash, transazione diversa ⇒ hash diverso.
+     * The amount is normalized to 2 decimals with a dot and no thousands separator, so the
+     * float's binary imprecision collapses to a stable string (e.g. 0.1+0.2 → "0.30").
+     * The canonicalization is IDENTICAL in start() and confirm()/validConfirmation(): the binding
+     * is self-consistent — same transaction ⇒ same hash, different transaction ⇒ different hash.
      */
     public function canonical(): string
     {

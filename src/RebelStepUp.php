@@ -23,8 +23,8 @@ use Padosoft\Rebel\StepUp\Results\StepUpStartResult;
 use Psr\Clock\ClockInterface;
 
 /**
- * Manager dello step-up: decide se serve, avvia la sfida col driver adatto, e verifica
- * la conferma. Applica l'enforcement dell'assurance e il PSD2/SCA dynamic linking.
+ * Step-up manager: decides whether it is needed, starts the challenge with the right
+ * driver, and verifies the confirmation. Enforces assurance and PSD2/SCA dynamic linking.
  */
 final class RebelStepUp
 {
@@ -43,15 +43,15 @@ final class RebelStepUp
         return $this->policies->for($purpose);
     }
 
-    /** Esiste una conferma valida per questo contesto? */
+    /** Is there a valid confirmation for this context? */
     public function isConfirmed(StepUpContext $context): bool
     {
         return $this->validConfirmation($context) !== null;
     }
 
     /**
-     * Driver utilizzabili per il purpose, in ordine di preferenza (config), filtrati
-     * per disponibilità e assurance.
+     * Drivers usable for the purpose, in order of preference (config), filtered
+     * by availability and assurance.
      *
      * @return list<StepUpDriver>
      */
@@ -75,8 +75,8 @@ final class RebelStepUp
     {
         $policy = $this->policy($context->purpose);
 
-        // Fail-closed PSD2/SCA: un purpose con dynamic linking SENZA TransactionContext
-        // produrrebbe un binding nullo (riutilizzabile e NON legato a importo/payee). Vietato.
+        // Fail-closed PSD2/SCA: a purpose with dynamic linking WITHOUT a TransactionContext
+        // would produce a null binding (reusable and NOT tied to amount/payee). Forbidden.
         if ($policy->scaDynamicLinking && $context->transaction === null) {
             throw new \InvalidArgumentException(
                 "Il purpose '{$context->purpose}' richiede il PSD2/SCA dynamic linking: un TransactionContext (importo+beneficiario) è obbligatorio."
@@ -85,9 +85,9 @@ final class RebelStepUp
 
         $driver = $this->pickDriver($context, $policy, $driverKey);
 
-        // Il binding SCA è governato dalla POLICY, non dalla semplice presenza di una
-        // transazione: per un purpose NON-SCA i campi bound_* restano null anche se al
-        // chiamante "scappa" un TransactionContext (niente dati incoerenti in tabella).
+        // The SCA binding is governed by the POLICY, not by the mere presence of a
+        // transaction: for a NON-SCA purpose the bound_* fields stay null even if the
+        // caller accidentally passes a TransactionContext (no inconsistent data in the table).
         $transaction = $policy->scaDynamicLinking ? $context->transaction : null;
         $binding = $transaction?->bindingHash($this->hasher);
         $now = CarbonImmutable::instance($this->clock->now());
@@ -115,19 +115,19 @@ final class RebelStepUp
         ]);
         $challenge->save();
 
-        // Se il driver fallisce ad avviare la sfida (es. provider email giù), non lasciare
-        // un challenge "pending" orfano: lo si annulla e si rilancia (fail-fast, niente stato sporco).
+        // If the driver fails to start the challenge (e.g. email provider down), do not leave
+        // an orphan "pending" challenge: cancel it and rethrow (fail-fast, no dirty state).
         try {
             $reference = $driver->start($context);
         } catch (\Throwable $e) {
-            // Best-effort: prova ad annullare il challenge. Se ANCHE il cancel fallisce
-            // (es. DB degradato) NON mascherare l'errore originale del driver: il challenge
-            // pending resta e scadrà per TTL.
+            // Best-effort: try to cancel the challenge. If the cancel ALSO fails
+            // (e.g. degraded DB), do NOT mask the driver's original error: the pending
+            // challenge remains and will expire by TTL.
             try {
                 $challenge->status = StepUpStatus::Cancelled;
                 $challenge->save();
             } catch (\Throwable) {
-                // ignorato di proposito: rilanciamo l'eccezione originale del driver
+                // intentionally ignored: we rethrow the driver's original exception
             }
 
             throw $e;
@@ -151,7 +151,7 @@ final class RebelStepUp
         $tenantId = $context->tenantId();
         $guard = $context->security->guard;
         $deviceId = $context->deviceId;
-        // Binding atteso: calcolato SOLO per i purpose SCA (per gli altri il binding è ignorato).
+        // Expected binding: computed ONLY for SCA purposes (for the others the binding is ignored).
         $expectedBinding = $policy->scaDynamicLinking ? $context->transaction?->bindingHash($this->hasher)->hash : null;
 
         return $this->db->connection()->transaction(function () use ($challengeId, $input, $context, $maxAttempts, $now, $tenantId, $guard, $deviceId, $expectedBinding): StepUpResult {
@@ -165,15 +165,15 @@ final class RebelStepUp
                     fn ($query) => $query->whereNull('tenant_id'),
                     fn ($query) => $query->where('tenant_id', $tenantId),
                 )
-                // Isolamento per-guard: una conferma fatta sotto un guard (es. `web`) non può
-                // valere per un guard diverso (es. `admin`) con lo stesso utente/tenant/purpose.
+                // Per-guard isolation: a confirmation made under one guard (e.g. `web`) cannot
+                // count for a different guard (e.g. `admin`) with the same user/tenant/purpose.
                 ->when(
                     $guard === null,
                     fn ($query) => $query->whereNull('guard'),
                     fn ($query) => $query->where('guard', $guard),
                 )
-                // Device binding simmetrico anche in conferma (coerente con validConfirmation):
-                // non si conferma una sfida avviata da un altro device.
+                // Symmetric device binding at confirm time too (consistent with validConfirmation):
+                // a challenge started from another device is not confirmed.
                 ->when(
                     $deviceId === null,
                     fn ($query) => $query->whereNull('device_id'),
@@ -197,8 +197,8 @@ final class RebelStepUp
                 return StepUpResult::failure('expired');
             }
 
-            // SCA dynamic linking: il confronto si applica SOLO alle sfide effettivamente
-            // bound (binding_hash non nullo). Confronto a tempo costante.
+            // SCA dynamic linking: the comparison applies ONLY to challenges that are actually
+            // bound (binding_hash not null). Constant-time comparison.
             if ($challenge->binding_hash !== null
                 && ($expectedBinding === null || ! hash_equals($challenge->binding_hash, $expectedBinding))) {
                 return StepUpResult::failure('binding_mismatch');
@@ -250,11 +250,11 @@ final class RebelStepUp
         $tenantId = $context->tenantId();
         $guard = $context->security->guard;
 
-        // Il binding è governato dalla POLICY: calcolato solo per i purpose SCA.
+        // The binding is governed by the POLICY: computed only for SCA purposes.
         $bindingHash = $policy->scaDynamicLinking ? $context->transaction?->bindingHash($this->hasher)->hash : null;
 
-        // Fail-closed PSD2/SCA: per un purpose con dynamic linking una conferma senza binding
-        // (nessuna transazione nel contesto) non è MAI valida — evita conferme non linkate.
+        // Fail-closed PSD2/SCA: for a purpose with dynamic linking, a confirmation without a
+        // binding (no transaction in the context) is NEVER valid — avoids unlinked confirmations.
         if ($policy->scaDynamicLinking && $bindingHash === null) {
             return null;
         }
@@ -275,14 +275,14 @@ final class RebelStepUp
                 fn ($query) => $query->whereNull('guard'),
                 fn ($query) => $query->where('guard', $guard),
             )
-            // Binding filtrato in base alla POLICY: per i purpose SCA deve combaciare con la
-            // transazione corrente; per i purpose non-SCA il binding viene ignorato del tutto.
+            // Binding filtered by POLICY: for SCA purposes it must match the current
+            // transaction; for non-SCA purposes the binding is ignored entirely.
             ->when(
                 $policy->scaDynamicLinking,
                 fn ($query) => $query->where('binding_hash', $bindingHash),
             )
-            // Il device binding è SIMMETRICO: contesto senza device ⇒ solo conferme senza device,
-            // contesto con device ⇒ solo conferme di QUEL device (niente bypass incrociati).
+            // Device binding is SYMMETRIC: a context without a device ⇒ only deviceless
+            // confirmations; a context with a device ⇒ only confirmations for THAT device (no cross bypass).
             ->when(
                 $context->deviceId === null,
                 fn ($query) => $query->whereNull('device_id'),
@@ -295,8 +295,8 @@ final class RebelStepUp
             return null;
         }
 
-        // Enforcement dell'assurance contro la policy CORRENTE: se la policy del purpose è
-        // stata innalzata dopo la conferma, una conferma "vecchia" e più debole non vale più.
+        // Assurance enforcement against the CURRENT policy: if the purpose's policy was
+        // raised after the confirmation, an "old", weaker confirmation no longer counts.
         if (! $this->achievedSatisfies($challenge, $policy)) {
             return null;
         }
@@ -304,14 +304,14 @@ final class RebelStepUp
         return $challenge;
     }
 
-    /** L'assurance effettivamente raggiunta dalla conferma soddisfa la policy corrente? */
+    /** Does the assurance actually achieved by the confirmation satisfy the current policy? */
     private function achievedSatisfies(StepUpChallenge $challenge, PurposePolicy $policy): bool
     {
         $achievedAal = $challenge->achieved_assurance === null
             ? null
             : Aal::tryFrom($challenge->achieved_assurance);
 
-        // Valore mancante o non riconosciuto (es. dato corrotto/migrato) ⇒ fail-closed.
+        // Missing or unrecognized value (e.g. corrupted/migrated data) ⇒ fail-closed.
         if ($achievedAal === null) {
             return false;
         }

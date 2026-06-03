@@ -9,7 +9,7 @@ use Padosoft\Rebel\StepUp\Contracts\StepUpDriver;
 use Padosoft\Rebel\StepUp\StepUpContext;
 
 /**
- * Driver finto per i test: accetta un codice atteso e un'assurance configurabile.
+ * Fake driver for tests: accepts an expected code and a configurable assurance.
  */
 final class FakeStepUpDriver implements StepUpDriver
 {

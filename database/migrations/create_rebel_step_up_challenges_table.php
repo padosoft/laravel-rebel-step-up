@@ -26,10 +26,10 @@ return new class extends Migration
             $table->boolean('achieved_phishing_resistant')->nullable();
             $table->boolean('achieved_restricted')->nullable();
             $table->string('selected_driver');
-            // riferimento opaco del driver (es. id challenge OTP)
+            // opaque driver reference (e.g. OTP challenge id)
             $table->string('driver_ref')->nullable();
 
-            // PSD2/SCA dynamic linking: la conferma è legata a importo+beneficiario.
+            // PSD2/SCA dynamic linking: the confirmation is bound to amount+payee.
             $table->string('binding_hash', 128)->nullable();
             $table->decimal('bound_amount', 13, 2)->nullable();
             $table->string('bound_currency', 3)->nullable();

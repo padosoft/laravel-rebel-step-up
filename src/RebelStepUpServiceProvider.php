@@ -12,8 +12,8 @@ use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
 /**
- * Step-up authentication purpose/risk-based, con assurance AAL/AMR e PSD2/SCA
- * dynamic linking. Dipende da core (linguaggio comune) ed email-otp (driver email).
+ * Purpose/risk-based step-up authentication, with AAL/AMR assurance and PSD2/SCA
+ * dynamic linking. Depends on core (common language) and email-otp (email driver).
  */
 final class RebelStepUpServiceProvider extends PackageServiceProvider
 {
@@ -36,7 +36,7 @@ final class RebelStepUpServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
-        // Driver nativo email-OTP.
+        // Native email-OTP driver.
         $this->app->make(DriverRegistry::class)->register(
             $this->app->make(EmailOtpStepUpDriver::class)
         );

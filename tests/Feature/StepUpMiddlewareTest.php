@@ -21,18 +21,18 @@ it('blocks a protected route without confirmation, then passes after step-up', f
     $user = new GenericUser(['id' => 1]);
     $this->actingAs($user);
 
-    // Senza conferma → 423 con i driver disponibili.
+    // Without confirmation → 423 with the available drivers.
     $this->getJson('/protected')
         ->assertStatus(423)
         ->assertJsonPath('error', 'step_up_required')
         ->assertJsonPath('drivers.0', 'fake');
 
-    // Conferma lo step-up.
+    // Confirm the step-up.
     $stepUp = app(RebelStepUp::class);
     $ctx = new StepUpContext($user, 'guarded', new SecurityContext('r'));
     $start = $stepUp->start($ctx);
     $stepUp->confirm($start->challengeId, '123456', $ctx);
 
-    // Ora passa.
+    // Now it passes.
     $this->getJson('/protected')->assertOk()->assertSee('ok');
 });

@@ -13,7 +13,7 @@ use Padosoft\Rebel\StepUp\RebelStepUp;
 use Padosoft\Rebel\StepUp\StepUpContext;
 
 /**
- * Utente di prova che espone l'email per lo step-up.
+ * Test user that exposes the email for step-up.
  */
 class StepUpEmailUser extends User implements HasStepUpEmail
 {

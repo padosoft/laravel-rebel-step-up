@@ -7,14 +7,14 @@ namespace Padosoft\Rebel\StepUp;
 use Padosoft\Rebel\Core\Assurance\Aal;
 
 /**
- * La policy di un "purpose" (azione protetta): che assurance richiede, quali driver
- * sono ammessi (in ordine di preferenza), per quanto vale la conferma, e se attiva
- * il dynamic linking PSD2.
+ * The policy of a "purpose" (protected action): which assurance it requires, which
+ * drivers are allowed (in order of preference), how long the confirmation lasts, and
+ * whether PSD2 dynamic linking is enabled.
  */
 final readonly class PurposePolicy
 {
     /**
-     * @param  list<string>  $drivers  chiavi driver in ordine di preferenza
+     * @param  list<string>  $drivers  driver keys in order of preference
      */
     public function __construct(
         public string $purpose,

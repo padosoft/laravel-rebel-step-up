@@ -13,11 +13,11 @@ use Padosoft\Rebel\StepUp\Contracts\StepUpDriver;
 use Padosoft\Rebel\StepUp\StepUpContext;
 
 /**
- * Driver di step-up basato sull'engine email-OTP (purpose-scoped, distinto dal login).
- * Disponibile solo se il subject implementa HasStepUpEmail.
+ * Step-up driver based on the email-OTP engine (purpose-scoped, distinct from login).
+ * Available only if the subject implements HasStepUpEmail.
  *
- * Assurance: AAL1, NON phishing-resistant → ok per purpose a bassa assurance o come
- * fallback; per azioni forti preferire passkey (vedi bridge-fortify).
+ * Assurance: AAL1, NOT phishing-resistant → fine for low-assurance purposes or as a
+ * fallback; for strong actions prefer a passkey (see bridge-fortify).
  */
 final class EmailOtpStepUpDriver implements StepUpDriver
 {

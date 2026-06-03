@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Padosoft\Rebel\StepUp\Results;
 
 /**
- * Esito dell'avvio di uno step-up: l'id della challenge step-up, il driver scelto,
- * e l'eventuale riferimento del driver (es. id challenge OTP) da mostrare al client.
+ * Outcome of starting a step-up: the step-up challenge id, the chosen driver,
+ * and the optional driver reference (e.g. OTP challenge id) to show to the client.
  */
 final readonly class StepUpStartResult
 {

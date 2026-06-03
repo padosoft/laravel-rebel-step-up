@@ -1,6 +1,6 @@
 # Laravel Rebel — Step-Up
 
-> **Chiedi una ri-conferma forte solo quando serve davvero.** L'utente è già loggato, ma sta per fare un'azione sensibile (cambiare email, scaricare una fattura, confermare un ordine a credito): Rebel Step-Up gli chiede un **secondo fattore mirato** (OTP email, passkey, TOTP…), con livello di sicurezza **AAL/AMR** scelto per quell'azione e — per i pagamenti — **PSD2/SCA dynamic linking** (la conferma è legata a importo+beneficiario). Fa parte della suite `padosoft/laravel-rebel-*`.
+> **Ask for a strong re-confirmation only when it truly matters.** The user is already logged in, but is about to perform a sensitive action (change their email, download an invoice, confirm a credit order): Rebel Step-Up asks them for a **targeted second factor** (email OTP, passkey, TOTP…), with the **AAL/AMR** security level chosen for that action and — for payments — **PSD2/SCA dynamic linking** (the confirmation is bound to amount+payee). It is part of the `padosoft/laravel-rebel-*` suite.
 
 <p align="center">
   <img src="resources/screenshoots/Laravel-Rebel-banner.png" alt="Laravel Rebel" width="100%">
@@ -17,133 +17,134 @@
 
 ---
 
-## Indice
+## Table of contents
 
-- [Cos'è (e cosa NON è)](#cosè-e-cosa-non-è)
-- [Glossario rapido (leggilo, dura 1 minuto)](#glossario-rapido-leggilo-dura-1-minuto)
-- [Perché Rebel Step-Up — i moat](#perché-rebel-step-up--i-moat)
-- [Rebel Step-Up vs il "fai-da-te"](#rebel-step-up-vs-il-fai-da-te)
-- [Come funziona (il flusso, passo-passo)](#come-funziona-il-flusso-passo-passo)
-- [Installazione (a prova di junior)](#installazione-a-prova-di-junior)
-- [Configurazione (ogni opzione)](#configurazione-ogni-opzione)
-- [Esempi d'uso](#esempi-duso)
-  - [1. Proteggere una rotta con il middleware](#1-proteggere-una-rotta-con-il-middleware)
-  - [2. Controllo manuale (senza middleware)](#2-controllo-manuale-senza-middleware)
-  - [3. Pagamento con PSD2/SCA dynamic linking](#3-pagamento-con-psd2sca-dynamic-linking)
-  - [4. Avviare e confermare una sfida (API/mobile)](#4-avviare-e-confermare-una-sfida-apimobile)
-  - [5. Scegliere il driver (passkey-first, fallback OTP)](#5-scegliere-il-driver-passkey-first-fallback-otp)
-  - [6. Legare la conferma al device](#6-legare-la-conferma-al-device)
-- [Validazione della config in CI](#validazione-della-config-in-ci)
+- [What it is (and what it is NOT)](#what-it-is-and-what-it-is-not)
+- [Quick glossary (read it, it takes 1 minute)](#quick-glossary-read-it-it-takes-1-minute)
+- [Why Rebel Step-Up — the moats](#why-rebel-step-up--the-moats)
+- [Rebel Step-Up vs the "do-it-yourself"](#rebel-step-up-vs-the-do-it-yourself)
+- [How it works (the flow, step by step)](#how-it-works-the-flow-step-by-step)
+- [Installation (junior-proof)](#installation-junior-proof)
+- [Configuration (every option)](#configuration-every-option)
+- [Usage examples](#usage-examples)
+  - [1. Protect a route with the middleware](#1-protect-a-route-with-the-middleware)
+  - [2. Manual control (without middleware)](#2-manual-control-without-middleware)
+  - [3. Payment with PSD2/SCA dynamic linking](#3-payment-with-psd2sca-dynamic-linking)
+  - [4. Start and confirm a challenge (API/mobile)](#4-start-and-confirm-a-challenge-apimobile)
+  - [5. Choose the driver (passkey-first, OTP fallback)](#5-choose-the-driver-passkey-first-otp-fallback)
+  - [6. Bind the confirmation to the device](#6-bind-the-confirmation-to-the-device)
+- [Validating the config in CI](#validating-the-config-in-ci)
 - [`.env.example`](#envexample)
-- [Sicurezza (cosa ti garantisce)](#sicurezza-cosa-ti-garantisce)
-- [Testing & Licenza](#testing--licenza)
+- [Security (what it guarantees you)](#security-what-it-guarantees-you)
+- [Testing & License](#testing--license)
 
 ---
 
-## Cos'è (e cosa NON è)
+## What it is (and what it is NOT)
 
-**È** il "control plane" che decide **quando** un utente già autenticato deve **ri-provare** chi è prima di un'azione delicata, **con quale forza** (assurance), e **legando** quella conferma all'azione specifica (per i pagamenti: a importo e beneficiario). Tu dichiari una policy per ogni *purpose* (azione) e Rebel fa rispettare la regola — via middleware o via API.
+**It is** the "control plane" that decides **when** an already-authenticated user must **re-prove** who they are before a sensitive action, **with what strength** (assurance), and **binding** that confirmation to the specific action (for payments: to amount and payee). You declare a policy for each *purpose* (action) and Rebel enforces the rule — via middleware or via API.
 
-**Non è**:
-- un sistema di **login** (per entrare c'è `laravel-rebel-email-otp` o Fortify via `laravel-rebel-bridge-fortify`); lo step-up presuppone un utente **già loggato**;
-- un generatore di OTP a sé: per l'OTP via email usa l'engine di `laravel-rebel-email-otp`; per passkey/TOTP usa i driver di `laravel-rebel-bridge-fortify`. Step-Up li **orchestra**, non li reimplementa.
+**It is NOT**:
+- a **login** system (to sign in there is `laravel-rebel-email-otp`, or Fortify via `laravel-rebel-bridge-fortify`); step-up assumes a user **already logged in**;
+- a standalone OTP generator: for email OTP it uses the engine of `laravel-rebel-email-otp`; for passkey/TOTP it uses the drivers of `laravel-rebel-bridge-fortify`. Step-Up **orchestrates** them, it does not reimplement them.
 
-Dipende da [`padosoft/laravel-rebel-core`](https://github.com/padosoft/laravel-rebel-core) (assurance, contratti, hashing keyed) e da [`padosoft/laravel-rebel-email-otp`](https://github.com/padosoft/laravel-rebel-email-otp) (driver OTP di default). Per la **visione d'insieme** dell'ecosistema parti dal README del core.
+It depends on [`padosoft/laravel-rebel-core`](https://github.com/padosoft/laravel-rebel-core) (assurance, contracts, keyed hashing) and on [`padosoft/laravel-rebel-email-otp`](https://github.com/padosoft/laravel-rebel-email-otp) (default OTP driver). For the **big picture** of the ecosystem, start from the core README.
 
 ---
 
-## Glossario rapido (leggilo, dura 1 minuto)
+## Quick glossary (read it, it takes 1 minute)
 
-| Termine | In parole semplici |
+| Term | In plain words |
 |---|---|
-| **Step-up** | "Sei già dentro, ma per QUESTA cosa ti richiedo una prova in più." |
-| **Purpose** | Il nome dell'azione protetta, es. `change-email`, `download-invoice`, `checkout-credit-order`. Ad ogni purpose associ una regola. |
-| **AAL** (Authenticator Assurance Level) | Quanto è "forte" la prova, secondo lo standard NIST. `aal1` = un fattore (es. OTP email); `aal2` = due fattori / più robusto. |
-| **AMR** | *Authentication Methods References*: la lista dei metodi usati, es. `['otp','email']`, `['webauthn']`. |
-| **Phishing-resistant** | Una prova che il phishing non può rubare: tipicamente **passkey/FIDO2**. Un OTP via email **non** lo è. |
-| **Driver** | Il "modo" con cui si fa la prova: `email_otp`, `fortify_passkey_confirm`, `fortify_totp`… Ognuno dichiara la propria assurance. |
-| **Binding / Dynamic linking** | La conferma è **incollata** ai dettagli dell'operazione (importo, valuta, beneficiario, ordine). Se cambiano, la conferma decade: lo impone la **PSD2/SCA** europea per i pagamenti. |
-| **Challenge** | La "pratica" di step-up aperta: ha id, scadenza, tentativi, stato. |
-| **Confirmation window (TTL)** | Per quanto tempo una conferma resta valida dopo il successo (poi va rifatta). |
+| **Step-up** | "You're already in, but for THIS thing I'm asking you for one more proof." |
+| **Purpose** | The name of the protected action, e.g. `change-email`, `download-invoice`, `checkout-credit-order`. You associate a rule with each purpose. |
+| **AAL** (Authenticator Assurance Level) | How "strong" the proof is, per the NIST standard. `aal1` = one factor (e.g. email OTP); `aal2` = two factors / more robust. |
+| **AMR** | *Authentication Methods References*: the list of methods used, e.g. `['otp','email']`, `['webauthn']`. |
+| **Phishing-resistant** | A proof that phishing cannot steal: typically **passkey/FIDO2**. An email OTP is **not**. |
+| **Driver** | The "way" the proof is performed: `email_otp`, `fortify_passkey_confirm`, `fortify_totp`… Each one declares its own assurance. |
+| **Binding / Dynamic linking** | The confirmation is **glued** to the details of the operation (amount, currency, payee, order). If they change, the confirmation lapses: this is mandated by the European **PSD2/SCA** for payments. |
+| **Challenge** | The open step-up "case": it has an id, an expiry, attempts, a status. |
+| **Confirmation window (TTL)** | How long a confirmation stays valid after success (then it must be redone). |
 
 ---
 
-## Perché Rebel Step-Up — i moat
+## Why Rebel Step-Up — the moats
 
-| ★ | Cosa | In breve |
+| ★ | What | In short |
 |---|---|---|
-| ★★★ | **Policy per-purpose** | Decidi per ogni azione il livello richiesto, i driver ammessi, il TTL. Niente `if` sparsi nel codice. |
-| ★★★ | **Enforcement dell'assurance** | Un driver **sotto soglia** viene rifiutato a priori. E se alzi la policy, le **conferme vecchie più deboli decadono** subito. |
-| ★★★ | **PSD2/SCA dynamic linking** | Conferma legata a importo+beneficiario con hash keyed; canonicalizzazione **anti-injection** (niente collisioni da separatori). |
-| ★★ | **Driver pluggabili** | OTP email incluso; passkey/TOTP via bridge-fortify; i tuoi driver custom implementando un'interfaccia. |
-| ★★ | **Atomico & anti-replay** | Verifica in transazione con `lockForUpdate`, single-use, max tentativi, scadenza. |
-| ★★ | **Device binding** | La conferma può essere legata al dispositivo: nessun riuso incrociato tra device. |
-| ★★ | **Multi-tenant & audit** | Tutto è scoped per tenant; ogni passo (`StepUpRequired/Verified/Failed`) è auditato. |
-| ★ | **Config validata in CI** | `php artisan rebel:validate-config` blocca configurazioni insicure prima del deploy. |
+| ★★★ | **Per-purpose policy** | Decide for each action the required level, the allowed drivers, the TTL. No `if`s scattered through the code. |
+| ★★★ | **Assurance enforcement** | A driver **below the threshold** is rejected upfront. And if you raise the policy, the **older, weaker confirmations lapse** immediately. |
+| ★★★ | **PSD2/SCA dynamic linking** | Confirmation bound to amount+payee with a keyed hash; **anti-injection** canonicalization (no collisions from separators). |
+| ★★ | **Pluggable drivers** | Email OTP included; passkey/TOTP via bridge-fortify; your own custom drivers by implementing an interface. |
+| ★★ | **Atomic & anti-replay** | Verification in a transaction with `lockForUpdate`, single-use, max attempts, expiry. |
+| ★★ | **Device binding** | The confirmation can be bound to the device: no cross-device reuse. |
+| ★★ | **Multi-tenant & audit** | Everything is scoped per tenant; every step (`StepUpRequired/Verified/Failed`) is audited. |
+| ★ | **Config validated in CI** | `php artisan rebel:validate-config` blocks insecure configurations before deploy. |
 
 ---
 
-## Rebel Step-Up vs il "fai-da-te"
+## Rebel Step-Up vs the "do-it-yourself"
 
-| | **Rebel Step-Up** | Middleware `password.confirm` di Laravel | "Reinserisci la password" fatto a mano |
-|---|---|---|---|
-| Forza configurabile per azione (AAL/AMR) | ✅ | ❌ (solo password) | ❌ |
-| Passkey / TOTP / OTP email intercambiabili | ✅ | ❌ | ❌ |
-| PSD2/SCA dynamic linking (importo+payee) | ✅ | ❌ | ❌ |
-| Conferma che decade se cambia l'importo | ✅ | ❌ | ❌ |
-| Device binding | ✅ | ❌ | ❌ |
-| Multi-tenant + audit trail | ✅ | ➖ | ❌ |
-| Validazione config in CI | ✅ | ❌ | ❌ |
+| | **Rebel Step-Up** | Laravel's `password.confirm` middleware | Fortify-native password confirmation | Hand-rolled "re-enter password" |
+|---|---|---|---|---|
+| Configurable strength per action (AAL/AMR) | ✅ | ❌ (password only) | ❌ (password only) | ❌ |
+| Passkey / TOTP / email OTP interchangeable | ✅ | ❌ | ❌ | ❌ |
+| PSD2/SCA dynamic linking (amount+payee) | ✅ | ❌ | ❌ | ❌ |
+| Confirmation that lapses if the amount changes | ✅ | ❌ | ❌ | ❌ |
+| Device binding | ✅ | ❌ | ❌ | ❌ |
+| Per-purpose, multiple protected actions | ✅ | ➖ (single global window) | ➖ (single global window) | ❌ |
+| Multi-tenant + audit trail | ✅ | ❌ | ❌ | ❌ |
+| Config validation in CI | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
-## Come funziona (il flusso, passo-passo)
+## How it works (the flow, step by step)
 
 ```
-Utente loggato → vuole fare un'azione "purpose" (es. checkout-credit-order)
+Logged-in user → wants to perform a "purpose" action (e.g. checkout-credit-order)
         │
         ▼
-[1] Il middleware rebel.stepup:checkout-credit-order intercetta
+[1] The middleware rebel.stepup:checkout-credit-order intercepts
         │
-        ├─ esiste già una conferma VALIDA (entro TTL, binding ok, device ok,
-        │  assurance ≥ policy CORRENTE)?  ── sì ──► passa, esegui l'azione
+        ├─ is there already a VALID confirmation (within TTL, binding ok, device ok,
+        │  assurance ≥ CURRENT policy)?  ── yes ──► pass through, run the action
         │
-        └─ no ──► risponde 423 (JSON) o redirect alla pagina di conferma,
-                  elencando i driver disponibili per quel purpose
+        └─ no ──► responds with 423 (JSON) or redirects to the confirmation page,
+                  listing the drivers available for that purpose
         ▼
-[2] Il client avvia la sfida:  RebelStepUp::start($ctx)
-        │   - sceglie il driver migliore ammesso dalla policy
-        │   - per i pagamenti calcola il binding_hash = HMAC(importo|valuta|payee|ordine)
-        │   - il driver invia il fattore (es. email con OTP)  → crea la challenge
+[2] The client starts the challenge:  RebelStepUp::start($ctx)
+        │   - picks the best driver allowed by the policy
+        │   - for payments, computes binding_hash = HMAC(amount|currency|payee|order)
+        │   - the driver sends the factor (e.g. email with OTP)  → creates the challenge
         ▼
-[3] L'utente inserisce il codice:  RebelStepUp::confirm($challengeId, $code, $ctx)
-        │   - transazione + lockForUpdate (atomico, single-use)
-        │   - ri-verifica il binding (importo/payee NON devono essere cambiati)
-        │   - delega al driver la verifica del fattore
-        │   - se ok: status=verified, salva l'assurance RAGGIUNTA, audita
+[3] The user enters the code:  RebelStepUp::confirm($challengeId, $code, $ctx)
+        │   - transaction + lockForUpdate (atomic, single-use)
+        │   - re-verifies the binding (amount/payee MUST NOT have changed)
+        │   - delegates factor verification to the driver
+        │   - if ok: status=verified, saves the ACHIEVED assurance, audits
         ▼
-[4] Ora isConfirmed($ctx) = true per la finestra TTL → il middleware fa passare
+[4] Now isConfirmed($ctx) = true for the TTL window → the middleware lets it through
 ```
 
-**Cosa succede se…**
-- *l'utente sbaglia il codice troppe volte* → la challenge va in `failed` (max tentativi configurabile);
-- *l'importo cambia tra `start` e `confirm`* → `binding_mismatch`, si rifà da capo (lo impone la SCA);
-- *alzi la policy da `aal1` a `aal2` dopo una conferma* → la vecchia conferma `aal1` **non vale più**;
-- *il provider del fattore va giù durante `start`* → la challenge viene **annullata** (niente "pending" orfani).
+**What happens if…**
+- *the user gets the code wrong too many times* → the challenge goes to `failed` (max attempts configurable);
+- *the amount changes between `start` and `confirm`* → `binding_mismatch`, you start over (the SCA mandates it);
+- *you raise the policy from `aal1` to `aal2` after a confirmation* → the old `aal1` confirmation **no longer counts**;
+- *the factor provider goes down during `start`* → the challenge is **cancelled** (no orphan "pending" entries).
 
 ---
 
-## Installazione (a prova di junior)
+## Installation (junior-proof)
 
-> Prerequisiti: Laravel **12 o 13**, PHP **8.3+**, già installati `padosoft/laravel-rebel-core` e `padosoft/laravel-rebel-email-otp` (vengono tirati come dipendenze).
+> Prerequisites: Laravel **12 or 13**, PHP **8.3+**, with `padosoft/laravel-rebel-core` and `padosoft/laravel-rebel-email-otp` already installed (they are pulled in as dependencies).
 
-**1) Richiedi il package**
+**1) Require the package**
 
 ```bash
 composer require padosoft/laravel-rebel-step-up
 ```
 
-**2) Pubblica config e migration**
+**2) Publish config and migration**
 
 ```bash
 php artisan vendor:publish --tag="rebel-step-up-config"
@@ -151,16 +152,16 @@ php artisan vendor:publish --tag="rebel-step-up-migrations"
 php artisan migrate
 ```
 
-**3) Configura il pepper (se non l'hai già fatto per il core)**
+**3) Configure the pepper (if you haven't already done so for the core)**
 
-Lo step-up usa l'hashing keyed del core per il binding SCA. Nel tuo `.env`:
+Step-up uses the core's keyed hashing for the SCA binding. In your `.env`:
 
 ```dotenv
 REBEL_PEPPER_CURRENT=1
-REBEL_PEPPER_1=metti-qui-un-segreto-lungo-e-casuale
+REBEL_PEPPER_1=put-a-long-and-random-secret-here
 ```
 
-**4) Definisci le tue azioni protette** in `config/rebel-step-up.php` (vedi sotto) e proteggi una rotta:
+**4) Define your protected actions** in `config/rebel-step-up.php` (see below) and protect a route:
 
 ```php
 use Illuminate\Support\Facades\Route;
@@ -169,35 +170,35 @@ Route::middleware(['auth', 'rebel.stepup:change-email'])
     ->post('/account/email', [AccountController::class, 'updateEmail']);
 ```
 
-Fatto: la rotta ora richiede uno step-up per il purpose `change-email`.
+Done: the route now requires a step-up for the `change-email` purpose.
 
 ---
 
-## Configurazione (ogni opzione)
+## Configuration (every option)
 
-File `config/rebel-step-up.php`. Chiavi globali:
+File `config/rebel-step-up.php`. Global keys:
 
-| Chiave | Default | Cosa fa | Quando cambiarla |
+| Key | Default | What it does | When to change it |
 |---|---|---|---|
-| `default_ttl_seconds` | `600` | Durata di default della **finestra di conferma** (quanto resta valida una conferma riuscita). | Azioni molto sensibili → abbassa (es. 120). |
-| `challenge_ttl_seconds` | `300` | Scadenza della **singola sfida** (entro quanto va inserito il codice). | Allinea alla durata dell'OTP del canale. |
-| `max_attempts` | `5` | Tentativi sbagliati prima di marcare la sfida `failed`. | Più severo → abbassa a 3. |
-| `redirect_route` | `null` | Per le richieste **web** (non-JSON): nome rotta della pagina di conferma. `null` ⇒ `abort(423)`. | Imposta la tua route di challenge. |
-| `purposes` | vedi sotto | Le tue **azioni protette** e le rispettive regole. | Sempre: qui dichiari cosa proteggere. |
+| `default_ttl_seconds` | `600` | Default duration of the **confirmation window** (how long a successful confirmation stays valid). | Very sensitive actions → lower it (e.g. 120). |
+| `challenge_ttl_seconds` | `300` | Expiry of the **single challenge** (how long you have to enter the code). | Align it with the channel's OTP duration. |
+| `max_attempts` | `5` | Wrong attempts before marking the challenge `failed`. | Stricter → lower it to 3. |
+| `redirect_route` | `null` | For **web** (non-JSON) requests: the route name of the confirmation page. `null` ⇒ `abort(423)`. | Set your own challenge route. |
+| `purposes` | see below | Your **protected actions** and their respective rules. | Always: this is where you declare what to protect. |
 
-Ogni voce di `purposes` accetta:
+Each `purposes` entry accepts:
 
-| Chiave del purpose | Default | Cosa fa |
+| Purpose key | Default | What it does |
 |---|---|---|
-| `required_assurance` | `aal1` | Livello AAL minimo richiesto (`aal1` / `aal2`). |
-| `require_phishing_resistant` | `false` | Se `true`, ammette **solo** driver phishing-resistant (es. passkey). |
-| `reject_restricted` | `false` | Se `true`, rifiuta autenticatori "restricted" NIST (es. SMS). |
-| `drivers` | `['email_otp']` | Driver ammessi, **in ordine di preferenza**. Il primo disponibile e idoneo viene scelto. |
-| `ttl_seconds` | `default_ttl_seconds` | Override della finestra di conferma per QUESTO purpose. |
-| `always_require` | `true` | **Riservato** all'hook risk-based (in arrivo): oggi lo step-up è **sempre** richiesto. Impostare `false` non salta ancora la verifica — lo farà quando il risk evaluator sarà collegato. |
-| `sca.dynamic_linking` | `false` | Se `true`, attiva il **binding** a importo+beneficiario (per i pagamenti). |
+| `required_assurance` | `aal1` | Minimum required AAL level (`aal1` / `aal2`). |
+| `require_phishing_resistant` | `false` | If `true`, allows **only** phishing-resistant drivers (e.g. passkey). |
+| `reject_restricted` | `false` | If `true`, rejects NIST "restricted" authenticators (e.g. SMS). |
+| `drivers` | `['email_otp']` | Allowed drivers, **in order of preference**. The first available and eligible one is chosen. |
+| `ttl_seconds` | `default_ttl_seconds` | Override of the confirmation window for THIS purpose. |
+| `always_require` | `true` | **Reserved** for the risk-based hook (coming soon): today step-up is **always** required. Setting `false` does not yet skip verification — it will once the risk evaluator is wired up. |
+| `sca.dynamic_linking` | `false` | If `true`, enables **binding** to amount+payee (for payments). |
 
-Esempio:
+Example:
 
 ```php
 'purposes' => [
@@ -209,25 +210,25 @@ Esempio:
     'download-invoice' => [
         'required_assurance' => 'aal1',
         'drivers' => ['email_otp'],
-        'ttl_seconds' => 900, // un quarto d'ora, è poco sensibile
+        'ttl_seconds' => 900, // a quarter of an hour, it's low-sensitivity
     ],
 
     'checkout-credit-order' => [
         'required_assurance' => 'aal2',
-        'require_phishing_resistant' => true,           // pretendi passkey…
-        'drivers' => ['fortify_passkey_confirm', 'email_otp'], // …con fallback OTP
-        'sca' => ['dynamic_linking' => true],           // PSD2: lega a importo+payee
+        'require_phishing_resistant' => true,           // demand a passkey…
+        'drivers' => ['fortify_passkey_confirm', 'email_otp'], // …with OTP fallback
+        'sca' => ['dynamic_linking' => true],           // PSD2: bind to amount+payee
     ],
 ],
 ```
 
-> ⚠️ Se un purpose richiede `aal2` + `require_phishing_resistant` ma elenca solo `email_otp` (che è `aal1`, non phishing-resistant), la config è **insicura**: `rebel:validate-config` fallisce in CI prima del deploy (vedi sotto).
+> ⚠️ If a purpose requires `aal2` + `require_phishing_resistant` but lists only `email_otp` (which is `aal1`, not phishing-resistant), the config is **insecure**: `rebel:validate-config` fails in CI before deploy (see below).
 
 ---
 
-## Esempi d'uso
+## Usage examples
 
-### 1. Proteggere una rotta con il middleware
+### 1. Protect a route with the middleware
 
 ```php
 // routes/web.php
@@ -236,7 +237,7 @@ Route::middleware(['auth', 'rebel.stepup:change-email'])->group(function () {
 });
 ```
 
-- **Richiesta JSON / API** senza conferma valida → `423 Locked`:
+- **JSON / API request** without a valid confirmation → `423 Locked`:
 
 ```json
 {
@@ -247,11 +248,11 @@ Route::middleware(['auth', 'rebel.stepup:change-email'])->group(function () {
 }
 ```
 
-- **Richiesta web** senza conferma → redirect a `redirect_route` (se impostata) o `abort(423)`.
+- **Web request** without a confirmation → redirect to `redirect_route` (if set) or `abort(423)`.
 
-### 2. Controllo manuale (senza middleware)
+### 2. Manual control (without middleware)
 
-Quando vuoi gestire tu il flusso in un controller:
+When you want to handle the flow yourself in a controller:
 
 ```php
 use Padosoft\Rebel\Core\Context\SecurityContext;
@@ -267,7 +268,7 @@ public function updateEmail(Request $request, RebelStepUp $stepUp)
     );
 
     if (! $stepUp->isConfirmed($ctx)) {
-        // avvia la sfida e dì al client di mostrare il form del codice
+        // start the challenge and tell the client to show the code form
         $start = $stepUp->start($ctx);
 
         return response()->json([
@@ -277,16 +278,16 @@ public function updateEmail(Request $request, RebelStepUp $stepUp)
         ], 423);
     }
 
-    // conferma valida: procedi
+    // valid confirmation: proceed
     $request->user()->update(['email' => $request->input('email')]);
 
     return response()->json(['ok' => true]);
 }
 ```
 
-### 3. Pagamento con PSD2/SCA dynamic linking
+### 3. Payment with PSD2/SCA dynamic linking
 
-La conferma viene **legata** a importo+valuta+beneficiario+ordine. Se l'utente conferma 100 € e poi qualcuno prova a far passare l'ordine a 999 €, la conferma **non vale**.
+The confirmation is **bound** to amount+currency+payee+order. If the user confirms €100 and then someone tries to push the order through at €999, the confirmation **does not count**.
 
 ```php
 use Padosoft\Rebel\StepUp\Sca\TransactionContext;
@@ -303,19 +304,19 @@ $ctx = new StepUpContext(
     ),
 );
 
-$start = $stepUp->start($ctx);          // calcola e congela il binding_hash
-// …l'utente inserisce il codice / usa la passkey…
+$start = $stepUp->start($ctx);          // computes and freezes the binding_hash
+// …the user enters the code / uses the passkey…
 $result = $stepUp->confirm($start->challengeId, $code, $ctx);
 
 if (! $result->success) {
-    // $result->reason può essere 'binding_mismatch' se importo/payee sono cambiati
-    return back()->withErrors(__('La transazione è cambiata, riconferma.'));
+    // $result->reason may be 'binding_mismatch' if amount/payee changed
+    return back()->withErrors(__('The transaction changed, please re-confirm.'));
 }
 ```
 
-### 4. Avviare e confermare una sfida (API/mobile)
+### 4. Start and confirm a challenge (API/mobile)
 
-Pattern a due endpoint, perfetto per app mobile (token Sanctum):
+A two-endpoint pattern, perfect for mobile apps (Sanctum tokens):
 
 ```php
 // POST /api/step-up/start
@@ -329,26 +330,26 @@ return $result->success
     : response()->json(['error' => $result->reason], 422);
 ```
 
-### 5. Scegliere il driver (passkey-first, fallback OTP)
+### 5. Choose the driver (passkey-first, OTP fallback)
 
-La policy elenca i driver in ordine di preferenza; puoi anche forzarne uno:
+The policy lists the drivers in order of preference; you can also force one:
 
 ```php
-// usa il driver preferito disponibile (es. passkey se l'utente ce l'ha)
+// use the preferred available driver (e.g. passkey if the user has one)
 $start = $stepUp->start($ctx);
 
-// oppure forza esplicitamente il fallback OTP email
+// or explicitly force the email OTP fallback
 $start = $stepUp->start($ctx, driverKey: 'email_otp');
 
-// quali driver sono utilizzabili ORA per questo utente/purpose?
+// which drivers are usable RIGHT NOW for this user/purpose?
 foreach ($stepUp->availableDrivers($ctx) as $driver) {
     echo $driver->key();
 }
 ```
 
-### 6. Legare la conferma al device
+### 6. Bind the confirmation to the device
 
-Passa un `deviceId` (es. derivato dal token Sanctum o da `hash(ip|user-agent)`): la conferma varrà **solo** per quel device.
+Pass a `deviceId` (e.g. derived from the Sanctum token or from `hash(ip|user-agent)`): the confirmation will count **only** for that device.
 
 ```php
 $ctx = new StepUpContext(
@@ -361,27 +362,27 @@ $ctx = new StepUpContext(
 );
 ```
 
-Una conferma fatta sul device A **non** sblocca l'azione sul device B.
+A confirmation made on device A does **not** unlock the action on device B.
 
 ---
 
-## Validazione della config in CI
+## Validating the config in CI
 
-Lo step-up estende il comando del core:
+Step-up extends the core's command:
 
 ```bash
 php artisan rebel:validate-config
 ```
 
-Esce con codice **≠ 0** se un purpose è configurato in modo insicuro, ad esempio:
-- richiede un'assurance che **nessun** driver elencato può raggiungere;
-- esige `phishing_resistant` ma elenca solo driver non phishing-resistant;
-- punta a un driver **non registrato**.
+It exits with a code **≠ 0** if a purpose is configured insecurely, for example:
+- it requires an assurance that **none** of the listed drivers can reach;
+- it demands `phishing_resistant` but lists only non-phishing-resistant drivers;
+- it points to an **unregistered** driver.
 
-Mettilo nella tua pipeline CI per non mandare in produzione regole che non si possono soddisfare:
+Put it in your CI pipeline so you don't ship rules to production that can't be satisfied:
 
 ```yaml
-- name: Valida la config Rebel
+- name: Validate the Rebel config
   run: php artisan rebel:validate-config
 ```
 
@@ -389,48 +390,48 @@ Mettilo nella tua pipeline CI per non mandare in produzione regole che non si po
 
 ## `.env.example`
 
-Il package committa un `.env.example` con tutte le variabili usate. Le essenziali:
+The package commits an `.env.example` with all the variables used. The essential ones:
 
 ```dotenv
-# --- Hashing keyed (condiviso col core): serve al binding SCA ---
-# Versione del pepper attualmente in uso.
+# --- Keyed hashing (shared with the core): needed for the SCA binding ---
+# The pepper version currently in use.
 REBEL_PEPPER_CURRENT=1
-# Il/i segreto/i pepper (uno per versione). Lungo, casuale, MAI committato.
-REBEL_PEPPER_1=cambia-questo-con-un-segreto-lungo-e-casuale
+# The pepper secret(s) (one per version). Long, random, NEVER committed.
+REBEL_PEPPER_1=change-this-with-a-long-and-random-secret
 
-# --- Step-up (opzionali: hanno default sensati nel config) ---
-# Finestra di conferma di default, in secondi.
+# --- Step-up (optional: they have sensible defaults in the config) ---
+# Default confirmation window, in seconds.
 REBEL_STEPUP_TTL=600
-# Scadenza della singola sfida, in secondi.
+# Expiry of the single challenge, in seconds.
 REBEL_STEPUP_CHALLENGE_TTL=300
-# Tentativi massimi prima del blocco della sfida.
+# Maximum attempts before locking the challenge.
 REBEL_STEPUP_MAX_ATTEMPTS=5
-# (opzionale) Route name della pagina di conferma per le richieste web.
+# (optional) Route name of the confirmation page for web requests.
 REBEL_STEPUP_REDIRECT_ROUTE=
 ```
 
 ---
 
-## Sicurezza (cosa ti garantisce)
+## Security (what it guarantees you)
 
-- **Verifica atomica & single-use**: `confirm` gira in transazione con `lockForUpdate`; due conferme concorrenti non passano entrambe.
-- **Enforcement dell'assurance sulla policy CORRENTE**: una conferma riuscita salva l'assurance *raggiunta*; se la policy viene innalzata, la conferma "vecchia" più debole decade.
-- **PSD2/SCA dynamic linking**: binding `HMAC` keyed (con `key_version` per la rotazione) su importo+valuta+beneficiario+ordine; canonicalizzazione **JSON anti-injection** (nessuna collisione da separatori nei campi).
-- **Device binding simmetrico**: contesto senza device ⇒ solo conferme senza device; con device ⇒ solo quel device. Nessun riuso incrociato.
-- **Isolamento tenant**: ogni query è scoped per tenant (null-safe).
-- **Fail-closed**: dati di assurance mancanti/corrotti ⇒ la conferma **non** è valida; importo non valido (NaN/∞/negativo) ⇒ eccezione subito.
-- **Audit**: `StepUpRequired`, `StepUpVerified`, `StepUpFailed` registrati via l'`AuditLogger` del core.
+- **Atomic & single-use verification**: `confirm` runs in a transaction with `lockForUpdate`; two concurrent confirmations don't both pass.
+- **Assurance enforcement against the CURRENT policy**: a successful confirmation saves the *achieved* assurance; if the policy is raised, the "old", weaker confirmation lapses.
+- **PSD2/SCA dynamic linking**: keyed `HMAC` binding (with `key_version` for rotation) over amount+currency+payee+order; **anti-injection JSON** canonicalization (no collisions from separators in the fields).
+- **Symmetric device binding**: a context without a device ⇒ only deviceless confirmations; with a device ⇒ only that device. No cross reuse.
+- **Tenant isolation**: every query is scoped per tenant (null-safe).
+- **Fail-closed**: missing/corrupted assurance data ⇒ the confirmation is **not** valid; an invalid amount (NaN/∞/negative) ⇒ an immediate exception.
+- **Audit**: `StepUpRequired`, `StepUpVerified`, `StepUpFailed` recorded via the core's `AuditLogger`.
 
 ---
 
-## Testing & Licenza
+## Testing & License
 
 ```bash
-composer test      # Pest (flussi manager, SCA, TTL, middleware, config, driver OTP reale)
-composer phpstan   # analisi statica, livello max
+composer test      # Pest (manager flows, SCA, TTL, middleware, config, real OTP driver)
+composer phpstan   # static analysis, max level
 composer pint      # code style
 ```
 
-La suite copre: avvio/conferma, codice errato + max tentativi, nessun driver idoneo, **dynamic linking** (cambio importo, collisione da separatori), scadenza TTL, **innalzamento della policy**, **device binding**, annullamento su crash del driver, middleware 423→OK, validazione config, e l'integrazione **reale** col driver `email_otp`.
+The suite covers: start/confirm, wrong code + max attempts, no eligible driver, **dynamic linking** (amount change, separator collision), TTL expiry, **policy raising**, **device binding**, cancellation on driver crash, middleware 423→OK, config validation, and the **real** integration with the `email_otp` driver.
 
-**Licenza:** MIT — vedi [LICENSE](LICENSE). Fa parte della suite [`padosoft/laravel-rebel`](https://github.com/padosoft).
+**License:** MIT — see [LICENSE](LICENSE). Part of the [`padosoft/laravel-rebel`](https://github.com/padosoft) suite.
