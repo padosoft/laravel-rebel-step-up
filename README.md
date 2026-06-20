@@ -1,5 +1,8 @@
 # Laravel Rebel — Step-Up
 
+> Official documentation: https://doc.laravel-rebel.padosoft.com
+
+
 > **Ask for a strong re-confirmation only when it truly matters.** The user is already logged in, but is about to perform a sensitive action (change their email, download an invoice, confirm a credit order): Rebel Step-Up asks them for a **targeted second factor** (email OTP, passkey, TOTP…), with the **AAL/AMR** security level chosen for that action and — for payments — **PSD2/SCA dynamic linking** (the confirmation is bound to amount+payee). It is part of the `padosoft/laravel-rebel-*` suite.
 
 <p align="center">
@@ -456,3 +459,4 @@ composer pint      # code style
 The suite covers: start/confirm, wrong code + max attempts, no eligible driver, **dynamic linking** (amount change, separator collision), TTL expiry, **policy raising**, **device binding**, cancellation on driver crash, middleware 423→OK, config validation, and the **real** integration with the `email_otp` driver.
 
 **License:** MIT — see [LICENSE](LICENSE). Part of the [`padosoft/laravel-rebel`](https://github.com/padosoft) suite.
+
